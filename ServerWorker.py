@@ -98,6 +98,26 @@ class ServerWorker:
 				self.clientInfo['event'].set()
 			
 				self.replyRtsp(self.OK_200, seq[1])
+		elif requestType == 'DESCRIBE':
+			print("processing DESCRIBE\n")
+			sdp = "v=0\n"
+			sdp += f"o=server {self.clientInfo['session']} 1 IN IP4 {self.clientInfo['rtspSocket'][1][0]}\n"
+			sdp += "s=Video Stream\n"
+			sdp += "m=video 0 RTP/AVP 26\n"     # JPEG payload type 26
+			sdp += f"c=IN IP4 {self.clientInfo['rtspSocket'][1][0]}\n"
+			sdp += "t=0 0\n"
+
+			# Build full RTSP reply with SDP body
+			reply = "RTSP/1.0 200 OK\n"
+			reply += f"CSeq: {seq[1]}\n"
+			reply += f"Session: {self.clientInfo['session']}\n"
+			reply += "Content-Type: application/sdp\n"
+			reply += f"Content-Length: {len(sdp)}\n\n"
+			reply += sdp
+
+			# Send reply
+			connSocket = self.clientInfo['rtspSocket'][0]
+			connSocket.send(reply.encode())
 		
 		# Process TEARDOWN request
 		elif requestType == self.TEARDOWN:
@@ -122,7 +142,7 @@ class ServerWorker:
 			data = self.clientInfo['videoStream'].nextFrame()
 			if data: 
 				frameNumber = self.clientInfo['videoStream'].frameNbr()
-				print (f"[Frame {frameNumber}] size = {len(data)} bytes")
+				# print (f"[Frame {frameNumber}] size = {len(data)} bytes")
 				try:
 					address = self.clientInfo['rtspSocket'][1][0]
 					port = int(self.clientInfo['rtpPort'])

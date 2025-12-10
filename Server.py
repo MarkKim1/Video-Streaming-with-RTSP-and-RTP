@@ -13,11 +13,17 @@ class Server:
 		rtspSocket.bind(('', SERVER_PORT))
 		rtspSocket.listen(5)        
 
-		# Receive client info (address,port) through RTSP/TCP session
-		while True:
-			clientInfo = {}
-			clientInfo['rtspSocket'] = rtspSocket.accept()
-			ServerWorker(clientInfo).run()		
+		try:
+			while True:
+				clientInfo = {}
+				clientInfo['rtspSocket'] = rtspSocket.accept()
+				ServerWorker(clientInfo).run()		
+		except KeyboardInterrupt:
+			rtspSocket.close()
+			print("\nServer Shut Down")
+		finally:
+			rtspSocket.close()
+			sys.exit(0)
 
 if __name__ == "__main__":
 	(Server()).main()

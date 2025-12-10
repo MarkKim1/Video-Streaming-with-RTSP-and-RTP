@@ -18,6 +18,7 @@ class Client:
 	PLAY = 1
 	PAUSE = 2
 	TEARDOWN = 3
+	DESCRIBE = 4
 	
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -50,7 +51,13 @@ class Client:
 		# self.setup["text"] = "Setup"
 		# self.setup["command"] = self.setupMovie
 		# self.setup.grid(row=1, column=0, padx=2, pady=2)
-		
+  
+		#Create Describe button
+		self.describe = Button(self.master, width=10, padx=3, pady=3)
+		self.describe["text"] = "Describe"
+		self.describe["command"] = self.DescribeMovie
+		self.describe.grid(row=1, column=0, padx=2, pady=2)
+  
 		# Create Play button		
 		self.start = Button(self.master, width=10, padx=3, pady=3)
 		self.start["text"] = "Play"
@@ -73,6 +80,10 @@ class Client:
 		self.label = Label(self.master, height=19)
 		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
 	
+	def DescribeMovie(self):
+		"""Describe button handler."""
+		self.sendRtspRequest(self.DESCRIBE)
+
 	def setupMovie(self):
 		"""Setup button handler."""
 		if self.state == self.INIT:
@@ -140,7 +151,7 @@ class Client:
 					rtpPacket.decode(data)
 					
 					currFrameNbr = rtpPacket.seqNum()
-					print("Current Seq Num: " + str(currFrameNbr))
+					# print("Current Seq Num: " + str(currFrameNbr))
      
 					if self.packetReceived == 0:
 						self.lastSeq = currFrameNbr
@@ -222,7 +233,6 @@ class Client:
 		#-------------
 		# TO COMPLETE
 		#-------------
-		
 		# Setup request
 		if requestCode == self.SETUP and self.state == self.INIT:
 			threading.Thread(target=self.recvRtspReply).start()
@@ -276,6 +286,12 @@ class Client:
 			# Keep track of the sent request.
 			# self.requestSent = ...
 			self.requestSent = self.TEARDOWN
+		elif requestCode == self.DESCRIBE:
+			self.rtspSeq += 1
+			request = f"DESCRIBE {self.fileName} RTSP/1.0"
+			request += f"\nSEeq: {self.rtspSeq}"
+			request += f"\nSession: {self.sessionId}\n"
+			self.requestSent = self.DESCRIBE	
 		else:
 			return
 		
@@ -335,6 +351,31 @@ class Client:
 						
 						# Flag the teardownAcked to close the socket.
 						self.teardownAcked = 1 
+					elif self.requestSent == self.DESCRIBE:
+						try:
+							blank_index = lines.index('')
+							sdp_body = lines[blank_index + 1:]
+						except ValueError:
+							sdp_body = []
+
+						print ("\n===== DESCRIBE RESPONSE =====")
+						print(f"[Client] Current Frame: {self.frameNbr}")
+
+						for line in sdp_body:
+							if line.startswith("v="):
+								print(f"Version:               {line[2:]}")
+							elif line.startswith("o="):
+								print(f"Origin:                {line[2:]}")
+							elif line.startswith("s="):
+								print(f"Session Name:          {line[2:]}")
+							elif line.startswith("m="):
+								print(f"Media:                 {line[2:]}")
+							elif line.startswith("c="):
+								print(f"Connection Address:    {line[2:]}")
+							elif line.startswith("t="):
+								print(f"Active Time:           {line[2:]}")
+
+						print ("=================================\n")
 	
 	def openRtpPort(self):
 		"""Open RTP socket binded to a specified port."""
